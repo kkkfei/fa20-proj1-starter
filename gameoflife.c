@@ -22,14 +22,80 @@
 //and the left column as adjacent to the right column.
 Color *evaluateOneCell(Image *image, int row, int col, uint32_t rule)
 {
+	int r[] = {1, 1, 1, 0, 0, -1, -1, -1};
+	int c[] = {0,-1, 1, 1,-1, 1,  0,  -1};
+	int v[8];
+	int next = 0;
+
+ 	Color* color = image->image[row*image->cols+col];
+	int cur = color->R | (color->G << 8) | (color->B << 16);
+
+	for(int i=0; i<8; ++i)
+	{
+		int row2 = (row + r[i] + image->rows)%image->rows;
+		int col2 = (col + c[i] + image->cols)%image->cols;
+
+		Color* color2 = image->image[row2*image->cols+col2];
+		v[i] = color2->R | (color2->G << 8) | (color2->B << 16);
+	}
+
+	for(int k=0; k<24; ++k)
+	{
+		int cnt = 0;
+		int mask = 1<<k;
+
+		for(int i=0; i<8; ++i)
+		{
+			if(v[i] & mask) {
+				++cnt;
+			}
+		}
+
+		if(cur & mask) {
+			//live
+			int mask2 = 1<<(cnt+9);
+			if(mask2 & rule) {
+				next |= mask;
+			}
+
+		} else {
+			//dead
+
+			int mask2 = 1<<cnt;
+			if(mask2 & rule) {
+				next |= mask;
+			}
+		}
+	}
+	
+	Color* cc = (Color *)malloc(sizeof(Color));
+	cc->R = next & 0xFF;
+	cc->G = (next >> 8) & 0xFF;
+	cc->B = (next >> 16) & 0xFF;
+
 	//YOUR CODE HERE
+	return cc;
 }
 
 //The main body of Life; given an image and a rule, computes one iteration of the Game of Life.
 //You should be able to copy most of this from steganography.c
 Image *life(Image *image, uint32_t rule)
 {
-	//YOUR CODE HERE
+	int col = image->cols;
+	int row = image->rows;
+
+	Image* im = (Image *)malloc(sizeof(Image));
+	im->cols = col;
+	im->rows = row;
+	im->image = (Color **)malloc(sizeof(Color *) * col * row);
+	for(int i=0; i<row; ++i)
+	{
+		for(int j=0; j<col; ++j)
+		{
+			im->image[i*col + j] = evaluateOneCell(image, i, j, rule);
+		}
+	}
+	return im;
 }
 
 /*
@@ -49,5 +115,17 @@ You may find it useful to copy the code from steganography.c, to start.
 */
 int main(int argc, char **argv)
 {
+
 	//YOUR CODE HERE
+	int rule;
+	sscanf(argv[2], "0x%x", &rule);
+
+	Image *image = readData(argv[1]);
+	Image *nextImg = life(image, rule);
+	writeData(nextImg);
+
+	freeImage(nextImg);
+	freeImage(image);
+
+	return 0;
 }
